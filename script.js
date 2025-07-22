@@ -1,10 +1,20 @@
 const fileInput = document.getElementById('file-input');
 const barcodeInput = document.getElementById('barcode-input');
-const generateButton = document.getElementById('generate-button');
+const nomenklaturaButton = document.getElementById('nomenklatura-button');
+const postuplenieButton = document.getElementById('postuplenie-button');
 const statusDiv = document.getElementById('status');
 
-// Вешаем обработчик на клик по кнопке
-generateButton.addEventListener('click', async () => {
+// Обработчик для кнопки "Номенклатура"
+nomenklaturaButton.addEventListener('click', async () => {
+    generateFile('nomenklatura');
+});
+
+// Обработчик для кнопки "Поступление"
+postuplenieButton.addEventListener('click', async () => {
+    generateFile('postuplenie');
+});
+
+async function generateFile(fileType) {
     const file = fileInput.files[0];
     const startBarcode = barcodeInput.value.trim();
 
@@ -12,13 +22,14 @@ generateButton.addEventListener('click', async () => {
         updateStatus('Пожалуйста, выберите Excel файл.', 'error');
         return;
     }
-    if (!startBarcode) {
+    if (!startBarcode && fileType === 'nomenklatura') {
         updateStatus('Пожалуйста, введите начальный штрихкод.', 'error');
         return;
     }
 
     updateStatus('Обработка файла...', 'info');
-    generateButton.disabled = true;
+    nomenklaturaButton.disabled = true;
+    postuplenieButton.disabled = true;
 
     try {
         const reader = new FileReader();
@@ -27,68 +38,67 @@ generateButton.addEventListener('click', async () => {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
                 
-                // Получаем первую страницу
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 
-                // Конвертируем в JSON
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
                 
-                // Фильтруем пустые строки
                 const rows = jsonData.filter(row => row.length > 0 && row[0] !== undefined);
                 
-                // Обработка данных
-                let currentBarcodeInt = parseInt(startBarcode);
-                const barcodeLength = startBarcode.length;
-                
-                // Подготовка данных для "Номенклатура"
-                const nomenklaturaData = [];
-                rows.forEach(row => {
-                    const barcode = currentBarcodeInt.toString().padStart(barcodeLength, '0');
-                    nomenklaturaData.push({
-                        "Штрихкод": barcode,
-                        "Наименование": row[0],
-                        "ЭтоУслуга": "Нет",
-                        "ЕдиницаИзмерения": "шт",
-                        "Ставка НДС": "Без НДС",
-                        "Цена": row[2]
+                if (fileType === 'nomenklatura') {
+                    let currentBarcodeInt = parseInt(startBarcode);
+                    const barcodeLength = startBarcode.length;
+                    
+                    const nomenklaturaData = [];
+                    rows.forEach(row => {
+                        const barcode = currentBarcodeInt.toString().padStart(barcodeLength, '0');
+                        nomenklaturaData.push({
+                            "Штрихкод": barcode,
+                            "Наименование": row[0],
+                            "ЭтоУслуга": "Нет",
+                            "ЕдиницаИзмерения": "шт",
+                            "Ставка НДС": "Без НДС",
+                            "Цена": row[2]
+                        });
+                        currentBarcodeInt++;
                     });
-                    currentBarcodeInt++;
-                });
-                
-                // Подготовка данных для "Поступление_товаров"
-                const postuplenieData = rows.map(row => ({
-                    "Номенклатура": row[0],
-                    "Количество": row[1],
-                    "Единица измерения": "шт",
-                    "Цена": row[2],
-                    "ЭтоУслуга": "Нет"
-                }));
-                
-                // Генерация и скачивание XLSX
-                const nomenklaturaWb = XLSX.utils.book_new();
-                const nomenklaturaWs = XLSX.utils.json_to_sheet(nomenklaturaData);
-                XLSX.utils.book_append_sheet(nomenklaturaWb, nomenklaturaWs, "Номенклатура");
-                XLSX.writeFile(nomenklaturaWb, "Номенклатура.xlsx");
 
-                const postuplenieWb = XLSX.utils.book_new();
-                const postuplenieWs = XLSX.utils.json_to_sheet(postuplenieData);
-                XLSX.utils.book_append_sheet(postuplenieWb, postuplenieWs, "Поступление_товаров");
-                XLSX.writeFile(postuplenieWb, "Поступление_товаров.xlsx");
-                
-                updateStatus('Файлы XLSX успешно сгенерированы и скачаны!', 'success');
-                generateButton.disabled = false;
+                    const nomenklaturaWb = XLSX.utils.book_new();
+                    const nomenklaturaWs = XLSX.utils.json_to_sheet(nomenklaturaData);
+                    XLSX.utils.book_append_sheet(nomenklaturaWb, nomenklaturaWs, "Номенклатура");
+                    XLSX.writeFile(nomenklaturaWb, "Номенклатура.xlsx");
+                    updateStatus('Файл Номенклатура.xlsx успешно сгенерирован и скачан!', 'success');
+                } else if (fileType === 'postuplenie') {
+                    const postuplenieData = rows.map(row => ({
+                        "Номенклатура": row[0],
+                        "Количество": row[1],
+                        "Единица измерения": "шт",
+                        "Цена": row[2],
+                        "ЭтоУслуга": "Нет"
+                    }));
+
+                    const postuplenieWb = XLSX.utils.book_new();
+                    const postuplenieWs = XLSX.utils.json_to_sheet(postuplenieData);
+                    XLSX.utils.book_append_sheet(postuplenieWb, postuplenieWs, "Поступление_товаров");
+                    XLSX.writeFile(postuplenieWb, "Поступление_товаров.xlsx");
+                    updateStatus('Файл Поступление_товаров.xlsx успешно сгенерирован и скачан!', 'success');
+                }
+
+                nomenklaturaButton.disabled = false;
+                postuplenieButton.disabled = false;
             } catch (err) {
                 updateStatus(`Ошибка обработки Excel: ${err.message}`, 'error');
-                generateButton.disabled = false;
+                nomenklaturaButton.disabled = false;
+                postuplenieButton.disabled = false;
             }
         };
         reader.readAsArrayBuffer(file);
     } catch (err) {
         updateStatus(`Произошла ошибка: ${err.message}`, 'error');
-        generateButton.disabled = false;
+        nomenklaturaButton.disabled = false;
+        postuplenieButton.disabled = false;
     }
-});
+}
 
 // Вспомогательная функция для обновления статуса
 function updateStatus(message, type) {
@@ -153,8 +163,8 @@ function previewExcel(data) {
 // Инициализация: активируем кнопку при загрузке страницы
 window.addEventListener('DOMContentLoaded', () => {
     statusDiv.textContent = 'Готово к работе. Выберите файл и введите штрихкод.';
-    generateButton.disabled = false;
-    generateButton.textContent = 'Сгенерировать файлы';
+    nomenklaturaButton.disabled = false;
+    postuplenieButton.disabled = false;
     
     // Обработчик для кнопки предпросмотра
     const previewButton = document.getElementById('preview-button');
