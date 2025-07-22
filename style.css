@@ -274,10 +274,11 @@ button:disabled {
 
 .button-group {
     display: flex;
-    justify-content: space-between;
-    gap: 15px; /* Расстояние между кнопками */
+    gap: 15px;
+    margin-bottom: 15px;
 }
 
 .button-group button {
-    width: 100%; /* Кнопки будут занимать равную ширину */
+    flex: 1;
+    margin-bottom: 0;
 }
