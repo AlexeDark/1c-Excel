@@ -65,13 +65,18 @@ generateButton.addEventListener('click', async () => {
                     "ЭтоУслуга": "Нет"
                 }));
                 
-                // Генерация CSV
-                const nomenklaturaCsv = convertToCsv(nomenklaturaData);
-                const postuplenieCsv = convertToCsv(postuplenieData);
+                // Генерация и скачивание XLSX
+                const nomenklaturaWb = XLSX.utils.book_new();
+                const nomenklaturaWs = XLSX.utils.json_to_sheet(nomenklaturaData);
+                XLSX.utils.book_append_sheet(nomenklaturaWb, nomenklaturaWs, "Номенклатура");
+                XLSX.writeFile(nomenklaturaWb, "Номенклатура.xlsx");
+
+                const postuplenieWb = XLSX.utils.book_new();
+                const postuplenieWs = XLSX.utils.json_to_sheet(postuplenieData);
+                XLSX.utils.book_append_sheet(postuplenieWb, postuplenieWs, "Поступление_товаров");
+                XLSX.writeFile(postuplenieWb, "Поступление_товаров.xlsx");
                 
-                // Скачивание файлов
-                downloadZip(nomenklaturaCsv, postuplenieCsv);
-                updateStatus('Архив 1c_files.zip успешно сгенерирован и скачан!', 'success');
+                updateStatus('Файлы XLSX успешно сгенерированы и скачаны!', 'success');
                 generateButton.disabled = false;
             } catch (err) {
                 updateStatus(`Ошибка обработки Excel: ${err.message}`, 'error');
@@ -91,30 +96,7 @@ function updateStatus(message, type) {
     statusDiv.className = type;
 }
 
-// Вспомогательная функция для скачивания архива
-function downloadZip(nomenklaturaCsv, postuplenieCsv) {
-    return new Promise((resolve) => {
-        const zip = new JSZip();
-        
-        // Добавляем файлы в архив с BOM для кириллицы
-        zip.file("Номенклатура.csv", "\uFEFF" + nomenklaturaCsv);
-        zip.file("Поступление_товаров.csv", "\uFEFF" + postuplenieCsv);
-        
-        // Генерируем архив и скачиваем
-        zip.generateAsync({type:"blob"})
-        .then(function(content) {
-            const now = new Date();
-            const dateStr = now.toISOString().slice(0, 19).replace(/:/g, '-').replace('T', '_');
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(content);
-            link.download = `1c_files_${dateStr}.zip`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            resolve(); // Разрешаем Promise после скачивания
-        });
-    });
-}
+
 
 // Функция для предпросмотра Excel файла
 function previewExcel(data) {
@@ -166,20 +148,7 @@ function previewExcel(data) {
     }
 }
 
-// Конвертация массива объектов в CSV
-function convertToCsv(items) {
-    if (items.length === 0) return '';
-    
-    const headers = Object.keys(items[0]);
-    const headerRow = headers.join(';');
-    const dataRows = items.map(item => 
-        headers.map(header => 
-            `"${item[header]}"`
-        ).join(';')
-    );
-    
-    return [headerRow, ...dataRows].join('\n');
-}
+
 
 // Инициализация: активируем кнопку при загрузке страницы
 window.addEventListener('DOMContentLoaded', () => {
