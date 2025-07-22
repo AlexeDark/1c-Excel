@@ -271,3 +271,13 @@ button:disabled {
 .excel-preview tr:hover {
     background-color: #f1f1f1;
 }
+
+.button-group {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px; /* Расстояние между кнопками */
+}
+
+.button-group button {
+    width: 100%; /* Кнопки будут занимать равную ширину */
+}
